@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Streakly — Habit Tracker</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1A1D23; --paper:#F7F6F2; --panel:#FFFFFF; --line:#E5E2D9; --muted:#7C7869;
+    --accent:#3E6259; --accent-dark:#2A453E; --flame:#D97E3D; --flame-dim:#E8B98A;
+  }
+  *{font-family:'Inter',sans-serif;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  body{background:var(--paper); color:var(--ink);}
+  .panel{background:var(--panel); border:1px solid var(--line);}
+  input:focus, select:focus{outline:none; box-shadow:0 0 0 2px var(--accent);}
+  ::-webkit-scrollbar{width:8px;} ::-webkit-scrollbar-thumb{background:#D8D4C9;border-radius:4px;}
+  .err{color:#B3432E; font-size:12px;}
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- Auth screen -->
+<div id="authScreen" class="min-h-screen flex items-center justify-center p-4">
+  <div class="panel rounded-lg p-8 w-full max-w-sm">
+    <div class="flex items-center gap-2 mb-1">
+      <div class="w-8 h-8 rounded flex items-center justify-center text-white font-bold mono text-sm" style="background:var(--accent-dark);">S/</div>
+      <h1 class="text-lg font-extrabold">Streakly</h1>
+    </div>
+    <p class="text-xs mb-6" style="color:var(--muted);">Track habits. Keep the streak alive.</p>
+
+    <div class="flex gap-2 mb-4 text-sm">
+      <button id="tabLogin" class="flex-1 py-2 rounded font-semibold" style="background:var(--accent-dark); color:white;">Log in</button>
+      <button id="tabRegister" class="flex-1 py-2 rounded font-semibold border" style="border-color:var(--line);">Register</button>
+    </div>
+
+    <form id="loginForm" class="space-y-3">
+      <input required type="email" name="email" placeholder="Email" class="w-full border rounded px-3 py-2 text-sm" style="border-color:var(--line);">
+      <input required type="password" name="password" placeholder="Password" class="w-full border rounded px-3 py-2 text-sm" style="border-color:var(--line);">
+      <p id="loginErr" class="err hidden"></p>
+      <button type="submit" class="w-full py-2 rounded text-white font-semibold text-sm" style="background:var(--accent-dark);">Log in</button>
+    </form>
+
+    <form id="registerForm" class="space-y-3 hidden">
+      <input required type="email" name="email" placeholder="Email" class="w-full border rounded px-3 py-2 text-sm" style="border-color:var(--line);">
+      <input required type="password" name="password" placeholder="Password (min 8 characters)" class="w-full border rounded px-3 py-2 text-sm" style="border-color:var(--line);">
+      <div>
+        <select required name="timezone" class="w-full border rounded px-3 py-2 text-sm" style="border-color:var(--line);">
+          <option value="">Select your timezone...</option>
+        </select>
+      </div>
+      <p id="registerErr" class="err hidden"></p>
+      <button type="submit" class="w-full py-2 rounded text-white font-semibold text-sm" style="background:var(--accent-dark);">Create account</button>
+    </form>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<div id="dashboard" class="hidden min-h-screen">
+  <header class="panel border-b">
+    <div class="max-w-4xl mx-auto px-5 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded flex items-center justify-center text-white font-bold mono text-sm" style="background:var(--accent-dark);">S/</div>
+        <h1 class="text-lg font-extrabold">Streakly</h1>
+      </div>
+      <div class="flex items-center gap-3 text-sm">
+        <span id="userInfo" style="color:var(--muted);" class="hidden sm:inline"></span>
+        <button id="logoutBtn" class="px-3 py-1.5 rounded border text-xs font-semibold" style="border-color:var(--line);">Log out</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-4xl mx-auto px-5 mt-6 pb-16">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-base font-bold">Your habits</h2>
+      <button id="newHabitBtn" class="px-4 py-2 rounded text-sm font-semibold text-white" style="background:var(--accent-dark);">+ New habit</button>
+    </div>
+    <div id="habitList" class="space-y-3"></div>
+    <div id="emptyState" class="hidden text-center py-14 text-sm panel rounded-lg" style="color:var(--muted);">No habits yet. Add your first one to start a streak.</div>
+  </div>
+</div>
+
+<!-- New habit modal -->
+<div id="habitModal" class="fixed inset-0 hidden items-center justify-center z-40 p-4" style="background:rgba(26,29,35,.5);">
+  <div class="panel rounded-lg w-full max-w-sm p-6">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-base font-bold">New habit</h2>
+      <button onclick="closeHabitModal()" class="text-xl leading-none" style="color:var(--muted);">&times;</button>
+    </div>
+    <form id="habitForm" class="space-y-3">
+      <input required name="name" placeholder="e.g. Morning run" class="w-full border rounded px-3 py-2 text-sm" style="border-color:var(--line);">
+      <p id="habitErr" class="err hidden"></p>
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" onclick="closeHabitModal()" class="px-4 py-2 text-sm rounded border" style="border-color:var(--line);">Cancel</button>
+        <button type="submit" class="px-4 py-2 text-sm rounded text-white font-semibold" style="background:var(--accent-dark);">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Backfill modal -->
+<div id="backfillModal" class="fixed inset-0 hidden items-center justify-center z-40 p-4" style="background:rgba(26,29,35,.5);">
+  <div class="panel rounded-lg w-full max-w-sm p-6">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-base font-bold">Log a past date</h2>
+      <button onclick="closeBackfillModal()" class="text-xl leading-none" style="color:var(--muted);">&times;</button>
+    </div>
+    <form id="backfillForm" class="space-y-3">
+      <input required type="date" name="local_date" class="w-full border rounded px-3 py-2 text-sm" style="border-color:var(--line);">
+      <p id="backfillErr" class="err hidden"></p>
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" onclick="closeBackfillModal()" class="px-4 py-2 text-sm rounded border" style="border-color:var(--line);">Cancel</button>
+        <button type="submit" class="px-4 py-2 text-sm rounded text-white font-semibold" style="background:var(--accent-dark);">Log check-in</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+const API = '/api';
+let token = null;
+let currentUser = null;
+let backfillHabitId = null;
+
+// Populate timezone dropdown from the browser's supported IANA list.
+const tzSelect = document.querySelector('select[name="timezone"]');
+const tzList = (Intl.supportedValuesOf ? Intl.supportedValuesOf('timeZone') : ['Asia/Kolkata','America/New_York','Europe/London','UTC']);
+tzSelect.innerHTML += tzList.map(tz => `<option value="${tz}">${tz}</option>`).join('');
+// Default-select the browser's own timezone if present in the list.
+const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+if (tzList.includes(browserTz)) tzSelect.value = browserTz;
+
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${API}${path}`, { ...opts, headers });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || `Request failed (${res.status})`);
+  return data;
+}
+
+// --- Auth tabs ---
+document.getElementById('tabLogin').onclick = () => {
+  document.getElementById('loginForm').classList.remove('hidden');
+  document.getElementById('registerForm').classList.add('hidden');
+  document.getElementById('tabLogin').style.background = 'var(--accent-dark)';
+  document.getElementById('tabLogin').style.color = 'white';
+  document.getElementById('tabRegister').style.background = '';
+  document.getElementById('tabRegister').style.color = '';
+};
+document.getElementById('tabRegister').onclick = () => {
+  document.getElementById('registerForm').classList.remove('hidden');
+  document.getElementById('loginForm').classList.add('hidden');
+  document.getElementById('tabRegister').style.background = 'var(--accent-dark)';
+  document.getElementById('tabRegister').style.color = 'white';
+  document.getElementById('tabLogin').style.background = '';
+  document.getElementById('tabLogin').style.color = '';
+};
+
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('loginErr');
+  errEl.classList.add('hidden');
+  const fd = Object.fromEntries(new FormData(e.target).entries());
+  try {
+    const data = await api('/auth/login', { method: 'POST', body: JSON.stringify(fd) });
+    onAuthSuccess(data);
+  } catch (err) {
+    errEl.textContent = err.message; errEl.classList.remove('hidden');
+  }
+});
+
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('registerErr');
+  errEl.classList.add('hidden');
+  const fd = Object.fromEntries(new FormData(e.target).entries());
+  try {
+    const data = await api('/auth/register', { method: 'POST', body: JSON.stringify(fd) });
+    onAuthSuccess(data);
+  } catch (err) {
+    errEl.textContent = err.message; errEl.classList.remove('hidden');
+  }
+});
+
+function onAuthSuccess(data) {
+  token = data.token;
+  currentUser = { email: data.email, timezone: data.timezone };
+  sessionStorage.setItem('streakly_token', token);
+  sessionStorage.setItem('streakly_user', JSON.stringify(currentUser));
+  showDashboard();
+}
+
+document.getElementById('logoutBtn').onclick = () => {
+  token = null; currentUser = null;
+  sessionStorage.removeItem('streakly_token');
+  sessionStorage.removeItem('streakly_user');
+  document.getElementById('dashboard').classList.add('hidden');
+  document.getElementById('authScreen').classList.remove('hidden');
+};
+
+function showDashboard() {
+  document.getElementById('authScreen').classList.add('hidden');
+  document.getElementById('dashboard').classList.remove('hidden');
+  document.getElementById('userInfo').textContent = `${currentUser.email} · ${currentUser.timezone}`;
+  loadHabits();
+}
+
+// --- Habits ---
+document.getElementById('newHabitBtn').onclick = () => {
+  document.getElementById('habitModal').classList.remove('hidden');
+  document.getElementById('habitModal').classList.add('flex');
+};
+function closeHabitModal(){
+  document.getElementById('habitModal').classList.add('hidden');
+  document.getElementById('habitModal').classList.remove('flex');
+  document.getElementById('habitForm').reset();
+  document.getElementById('habitErr').classList.add('hidden');
+}
+
+document.getElementById('habitForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('habitErr');
+  const fd = Object.fromEntries(new FormData(e.target).entries());
+  try {
+    await api('/habits', { method: 'POST', body: JSON.stringify(fd) });
+    closeHabitModal();
+    loadHabits();
+  } catch (err) {
+    errEl.textContent = err.message; errEl.classList.remove('hidden');
+  }
+});
+
+async function loadHabits() {
+  const habits = await api('/habits');
+  const list = document.getElementById('habitList');
+  const empty = document.getElementById('emptyState');
+  if (habits.length === 0) { list.innerHTML = ''; empty.classList.remove('hidden'); return; }
+  empty.classList.add('hidden');
+  list.innerHTML = habits.map(h => `
+    <div class="panel rounded-lg p-4 flex items-center justify-between">
+      <div>
+        <div class="font-semibold text-sm">${escapeHtml(h.name)}</div>
+        <div class="text-xs mt-1" style="color:var(--muted);">${h.total_checkins} total check-ins</div>
+      </div>
+      <div class="flex items-center gap-5">
+        <div class="text-center">
+          <div class="mono text-xl font-bold" style="color:var(--flame);">${h.current_streak}</div>
+          <div class="text-[10px] uppercase" style="color:var(--muted);">Current</div>
+        </div>
+        <div class="text-center">
+          <div class="mono text-xl font-bold">${h.longest_streak}</div>
+          <div class="text-[10px] uppercase" style="color:var(--muted);">Longest</div>
+        </div>
+        <div class="flex flex-col gap-1">
+          <button onclick="checkinToday(${h.id})" class="px-3 py-1.5 rounded text-xs font-semibold text-white" style="background:var(--accent-dark);">Check in today</button>
+          <button onclick="openBackfillModal(${h.id})" class="px-3 py-1.5 rounded text-xs font-semibold border" style="border-color:var(--line);">Backfill date</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+async function checkinToday(habitId) {
+  try {
+    await api(`/habits/${habitId}/checkins`, { method: 'POST', body: JSON.stringify({}) });
+    loadHabits();
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+function openBackfillModal(habitId) {
+  backfillHabitId = habitId;
+  document.getElementById('backfillModal').classList.remove('hidden');
+  document.getElementById('backfillModal').classList.add('flex');
+}
+function closeBackfillModal(){
+  document.getElementById('backfillModal').classList.add('hidden');
+  document.getElementById('backfillModal').classList.remove('flex');
+  document.getElementById('backfillForm').reset();
+  document.getElementById('backfillErr').classList.add('hidden');
+}
+
+document.getElementById('backfillForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('backfillErr');
+  const fd = Object.fromEntries(new FormData(e.target).entries());
+  try {
+    await api(`/habits/${backfillHabitId}/checkins`, { method: 'POST', body: JSON.stringify(fd) });
+    closeBackfillModal();
+    loadHabits();
+  } catch (err) {
+    errEl.textContent = err.message; errEl.classList.remove('hidden');
+  }
+});
+
+// --- Resume session ---
+const savedToken = sessionStorage.getItem('streakly_token');
+const savedUser = sessionStorage.getItem('streakly_user');
+if (savedToken && savedUser) {
+  token = savedToken;
+  currentUser = JSON.parse(savedUser);
+  showDashboard();
+}
+</script>
+</body>
+</html>
