@@ -159,4 +159,4 @@ swapping the `sqlite3` connection for a Postgres driver).
 - Session expiry (currently tokens don't expire)
 - Habit archiving/deletion
 - A calendar heatmap view of check-in history (GitHub-contributions style)
- Submitted for the Product Engineering Intern take-home assignment.
+ Submitted for the Product Engineering intern take-home assignment.
